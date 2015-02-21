@@ -1,6 +1,5 @@
 `ifndef SCIENGINES_API_CONST
 `define SCIENGINES_API_CONST
-	`define C_NUM_LEDS 2
 	`define C_LENGTH_ADDR_SLOT 10
 		`define ADDR_SLOT_ALL 10'h3ff
 	`define C_LENGTH_ADDR_FPGA 5

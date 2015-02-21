@@ -2,14 +2,16 @@
 
 `include "SciEngines_API_constant.v"
 
-module rivyera_template_main (
+module rivyera_template_main # (
+		parameter NUM_LEDS = 2
+)(
 	//
 	// API PORTS
 	//
 		// GENERAL PORTS
 		input								api_clk_in,
 		input								api_rst_in,
-		output	[`C_NUM_LEDS-1:0]			api_led_out,
+		output	[NUM_LEDS-1:0]				api_led_out,
 		input	[`C_LENGTH_HW_REV-1:0]		api_hw_rev_in,
 		// ADDRESS PORTS
 		input								api_self_contr_in,
@@ -64,7 +66,7 @@ module rivyera_template_main (
 	// has two LEDs for debugging purposes.
 	// Set these LEDs disabled here. Comment following
 	// line and use this signal anywhere you want to!
-	assign api_led_out = 0;
+	assign api_led_out = {NUM_LEDS{1'b0}};
 
 
 
