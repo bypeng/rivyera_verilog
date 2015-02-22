@@ -74,7 +74,8 @@ module tinyaestest0_main # (
 	assign data_outregs[0] = ciphertext[63:0];
 
 	// Output default values. Comment anyone if you are going to use it.
-	assign api_o_tgt_slot_out	= api_self_contr_in ? api_self_slot_in : api_next_contr_in;
+	//assign api_o_tgt_slot_out	= api_self_contr_in ? api_self_slot_in : api_next_contr_in;
+	assign api_o_tgt_slot_out	= api_i_src_slot_in;
 	assign api_o_tgt_fpga_out	= api_i_src_fpga_in;
 	assign api_o_tgt_reg_out	= api_i_src_reg_in;
 	assign api_o_tgt_cmd_out	= `CMD_WR;
