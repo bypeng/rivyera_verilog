@@ -12,5 +12,6 @@
 		`define CMD_WR 1'b1
 	`define C_LENGTH_DATA 64
 	`define C_LENGTH_HW_REV 8
+    `define C_NUM_LEDS 2
 `endif // SCIENGINES_API_CONST
 

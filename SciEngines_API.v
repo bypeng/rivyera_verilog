@@ -10,13 +10,13 @@
 `include "SciEngines_API_constant.v"
 
 module SciEngines_API #(
-	parameter	NUM_LEDS = `C_NUM_LEDS,
-				LENGTH_ADDR_SLOT = `C_LENGTH_ADDR_SLOT,
-				LENGTH_ADDR_FPGA = `C_LENGTH_ADDR_FPGA,
-				LENGTH_ADDR_REG = `C_LENGTH_ADDR_REG,
-				LENGTH_CMD = `C_LENGTH_CMD,
-				LENGTH_DATA = `C_LENGTH_DATA,
-				LENGTH_HW_REV = `C_LENGTH_HW_REV	
+	parameter	NUM_LEDS            = `C_NUM_LEDS,
+				LENGTH_ADDR_SLOT    = `C_LENGTH_ADDR_SLOT,
+				LENGTH_ADDR_FPGA    = `C_LENGTH_ADDR_FPGA,
+				LENGTH_ADDR_REG     = `C_LENGTH_ADDR_REG,
+				LENGTH_CMD          = `C_LENGTH_CMD,
+				LENGTH_DATA         = `C_LENGTH_DATA,
+				LENGTH_HW_REV       = `C_LENGTH_HW_REV	
 ) (
 	//
 	// EXTERNAL PORTS
@@ -37,7 +37,7 @@ module SciEngines_API #(
 		output							api_clk_out,
 		output							api_rst_out,
 		input	[NUM_LEDS-1:0]			api_led_in,
-		output	[LENGTH_HW_REV-1:0]		api_hw_rev_out,
+        output  [LENGTH_HW_REV-1:0]     api_hw_rev_out,
 		// ADDRESS PORTS
 		output							api_self_contr_out, 
 		output	[LENGTH_ADDR_SLOT-1:0]	api_prev_contr_out, 
