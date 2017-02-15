@@ -44,30 +44,165 @@ module rivyera_template_main # (
 		output								api_i_rd_en_out
 );
 
-	// Output default values. Comment anyone if you are going to use it.
-	assign api_o_tgt_slot_out	= {`C_LENGTH_ADDR_SLOT{1'b0}};
-	assign api_o_tgt_fpga_out	= {`C_LENGTH_ADDR_FPGA{1'b0}};
-	assign api_o_tgt_reg_out	= {`C_LENGTH_ADDR_REG{1'b0}};
-	assign api_o_tgt_cmd_out	= `CMD_WR;
-	assign api_o_src_reg_out	= {`C_LENGTH_ADDR_REG{1'b0}};
-	assign api_o_src_cmd_out	= `CMD_WR;
-	assign api_o_data_out		= {`C_LENGTH_DATA{1'b0}};
-	assign api_o_wr_en_out		= 1'b0;
-	assign api_i_rd_en_out		= 1'b0;
+    localparam S_IDLE = 2'b00;
+    localparam S_LOAD = 2'b01;
+    localparam S_TASK = 2'b10;
 
-	// When defining an own clock domain to
-	// run the user design with a different
-	// clock, the following two lines should
-	// probably be altered
+    localparam C_SIZE_ADDR_REG = 1 << `C_LENGTH_ADDR_REG;
+    //localparam C_LEN_RDCOUNT = `C_LENGTH_DATA;
+    localparam C_LEN_RDCOUNT = 8;
+    localparam D_SIZE = `C_LENGTH_ADDR_SLOT + `C_LENGTH_ADDR_FPGA + 2 * `C_LENGTH_ADDR_REG + C_LEN_RDCOUNT;
+
+    reg     ['C_LENGTH_DATA-1:0]        regs [C_SIZE_ADDR_REG-1:0];
+
+    reg     [1:0]                       r_state;
+    reg     [1:0]                       r_nextstate;
+
+    reg     [1:0]                       w_state;
+    reg     [1:0]                       w_nextstate;
+    reg     [C_LEN_RDCOUNT-1:0]         w_counter;
+    reg     [C_LEN_RDCOUNT-1:0]         w_nextcounter;
+
+    wire                                clk;
+    wire                                rst;
+
+    reg                                 f_we;
+    reg     [D_SIZE-1:0]                f_din;
+    wire                                f_full;
+    reg                                 f_re;
+    wire    [D_SIZE-1:0]                f_dout;
+    wire                                f_empty;
+
+    assign clk = api_clk_in;
+    assign rst = api_rst_in;
+
 	assign api_i_clk_out = api_clk_in;
 	assign api_o_clk_out = api_clk_in;
-
-	// A Spartan 3 FPGA has one LED and a Spartan 6 FPGA
-	// has two LEDs for debugging purposes.
-	// Set these LEDs disabled here. Comment following
-	// line and use this signal anywhere you want to!
 	assign api_led_out = {NUM_LEDS{1'b0}};
 
+    always @ (posedge clk) begin
+        r_state <= r_nextstate;
+        w_state <= w_nextstate;
+        w_counter <= w_nextcounter;
+        w_regindex <= w_nextregindex;
+    end
 
+    always @ (*) begin
+        if(rst) begin
+            r_nextstate = S_IDLE;
+        end else begin
+            case(r_state)
+                S_IDLE: begin
+                    if(!api_i_empty_in) begin
+                        r_nextstate = S_LOAD;
+                    end else begin
+                        r_nextstate = S_IDLE;
+                    end
+                end
+                S_LOAD: begin
+                    r_nextstate = S_TASK;
+                end
+                S_TASK: begin
+                    if(!f_full) begin
+                        r_nextstate = S_IDLE;
+                    end else begin
+                        r_nextstate = S_TASK;
+                    end
+                end
+                default: begin
+                    r_nextstate = S_IDLE;
+                end
+            endcase
+        end
+    end
+
+    assign api_i_rd_en_out = (r_state == S_LOAD);
+
+    generate
+        genvar reg_index;
+        always @ (posedge clk) begin
+            if(rst) begin
+                for(reg_index = 0; reg_index < C_SIZE_ADDR_REG; reg_index = reg_index + 1) begin
+                    regs[reg_index] <= { `C_LENGTH_DATA {1'b0} };
+                end
+            end else begin
+                if((r_state == S_IDLE) && (r_nextstate == S_LOAD) && (api_i_tgt_cmd_in == `CMD_WR)) begin
+                    regs[api_i_tgt_reg_in] <= api_i_data_in;
+                end
+            end
+        end
+    endgenerate
+
+    // TODO: 1. Connect the register pool to the core IP.
+    //       2. Modify the control registers as necessary.
+
+    always @ (posedge clk) begin
+        if(rst) begin
+            f_we <= 1'b0;
+            f_din <= { D_SIZE {1'b0} };
+        end else begin
+            if((r_state == S_IDLE) && (r_nextstate == S_LOAD) && (apt_i_tgt_cmd_in == `CMD_RD)) begin
+                f_we <= 1'b1;
+                f_din <= { api_i_src_slot_in, api_i_src_fpga_in, api_i_src_reg_in, api_i_tgt_reg_in, api_i_data_in[C_LEN_RDCOUNT-1:0] };
+            end else begin
+                f_we <= 1'b0;
+                f_din <= f_din;
+            end
+        end
+    end
+
+    fifo # ( .D_SIZE(D_SIZE), .Q_DEPTH(6) ) fifo_read ( .clk(clk), .rst(rst),
+             .d_in(f_din), .d_out(f_dout), .wr_en(f_we), .rd_en(f_re), .f_empty(f_empty), .f_full(f_full) );
+
+    always @ (*) begin
+        if(rst) begin
+            w_nextstate = S_IDLE;
+            w_nextcounter = { C_LEN_RDCOUNT { 1'b0 } };
+        end else begin
+            case(w_state)
+                S_IDLE: begin
+                    if(!f_empty) begin
+                        w_nextstate = S_LOAD;
+                        w_nextcounter = { C_LEN_RDCOUNT { 1'b0 } };
+                    end else begin
+                        w_nextstate = S_IDLE;
+                        w_nextcounter = { C_LEN_RDCOUNT { 1'b0 } };
+                    end
+                end
+                S_LOAD: begin
+                    w_nextstate = S_TASK;
+                    w_nextcounter = f_out[C_LEN_RDCOUNT-1:0];
+                end
+                S_TASK: begin
+                    if(|w_counter) begin
+                        w_nextstate = S_TASK;
+                        if(api_o_rfd_in) begin
+                            w_nextcounter = w_counter + { C_LEN_RDCOUNT { 1'b1 } }; // - 1
+                        end else begin
+                            w_nextcounter = w_counter;
+                        end
+                    end else begin
+                        w_nextstate = S_IDLE;
+                        w_nextcounter = { C_LEN_RDCOUNT { 1'b0 } };
+                    end
+                end
+                default: begin
+                    w_nextstate = S_IDLE;
+                    w_nextcounter = { C_LEN_RDCOUNT { 1'b0 } };
+                end
+            endcase
+        end
+    end
+
+    assign f_re = (w_state == S_IDLE) && (~f_empty);
+
+    assign api_o_tgt_slot_out = f_dout[(C_LEN_RDCOUNT + 2 * `C_LENGTH_ADDR_REG + `C_LENGTH_ADDR_FPGA) +: `C_LENGTH_ADDR_SLOT];
+    assign api_o_tgt_fpga_out = f_dout[(C_LEN_RDCOUNT + 2 * `C_LENGTH_ADDR_REG) +: `C_LENGTH_ADDR_FPGA];
+    assign api_o_tgt_reg_out = f_dout[(C_LEN_RDCOUNT + `C_LENGTH_ADDR_REG) +: `C_LENGTH_ADDR_REG];
+    assign api_o_tgt_cmd_out = `CMD_WR;
+    assign api_o_src_reg_out = f_dout[C_LEN_RDCOUNT +: `C_LENGTH_ADDR_REG];
+    assign api_o_src_cmd_out = `CMD_WR;
+    assign api_o_data_out = regs[api_o_src_reg_out];
+    assign api_o_wr_en_out = (w_state == S_TASK) && (|w_counter) && (api_o_rfd_in);
 
 endmodule
