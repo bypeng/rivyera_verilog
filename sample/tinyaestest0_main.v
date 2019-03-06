@@ -68,7 +68,7 @@ module tinyaestest0_main # (
     wire [255:0] key;
     wire [127:0] ciphertext;
 
-    assign plaintext = { data_inregs[1], data_inregs[0] };
+    assign plaintext = { api_self_slot_in[2:0], api_self_fpga_in[2:0], data_inregs[1][57:0], data_inregs[0] };
     assign key = { data_inregs[5], data_inregs[4], data_inregs[3], data_inregs[2] };
     assign data_outregs[1] = ciphertext[127:64];
     assign data_outregs[0] = ciphertext[63:0];
